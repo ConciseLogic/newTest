@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				background-color: #6493af;
+				color: black;
+			}
+
+			header {
+				height: 7vh;
+				text-align: center;
+				position: relative;
+				background-color: aqua;
+			}
+
+			header>span:nth-child(1) {
+				height: 100%;
+				line-height: 7vh;
+				position: absolute;
+				left: 10vw;
+				/* background-color: red; */
+			}
+
+			header>span:nth-child(3) {
+				height: 100%;
+				line-height: 7vh;
+				position: absolute;
+				top: 0;
+				right: 0;
+			}
+
+			header>h1 {
+				/* height: 100%; */
+				font-size: 4vh;
+				/* background-color: black; */
+			}
+
+			table {
+				width: 100%;
+				height: 100%;
+				border: 2px solid gray;
+				text-align: center;
+				overflow: auto;
+			}
+
+			caption {
+				font-size: 24px;
+			}
+
+			thead>tr {
+				background-color: pink;
+			}
+
+			tbody>tr:nth-child(odd) {
+				background-color: rgb(145, 152, 174);
+			}
+
+			tbody>tr:nth-child(even) {
+				background-color: rgb(87, 90, 93);
+			}
+		</style>
+	</head>
+	<body>
+		<header>
+			<span>登录人</span>
+			<h1>账本</h1>
+			<span class="showTime"></div>
+		</header>
+		<section class="search">
+			<select name="type" >
+				<optgroup label="in">
+					<option value="salary">工資</option>
+				</optgroup>
+				<optgroup label="out">
+					<option value="eating" class="se">喫</option>
+					<option value="clothing">穿</option>
+					<option value="living">住</option>
+					<option value="walking">行</option>
+					<option value="teaching">育</option>
+					<option value="curing">醫</option>
+					<option value="borrow">借</option>
+					<option value="debt">債</option>
+					<option value="need">需</option>
+					<option value="play">玩</option>
+				</optgroup>
+			</select>
+			<input type="date" name="time" placeholder="日期">
+			<input type="number" name="amount" min="0" max="1000000"placeholder="金额">
+			<input type="text" name="notice" placeholder="备注">
+			<input type="text" name="belong" placeholder="归属人">
+		</section>
+		<table>
+			<caption>收入支出记录表</caption>
+			<thead>
+				<tr>
+					<th scope="col">收支</th>
+					<th scope="col">类型</th>
+					<th scope="col">时刻</th>
+					<th scope="col">金额(元)</th>
+					<th scope="col">备注</th>
+					<th scope="col">谁的数据</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+
+	</body>
+</html>
+<script>
+	window.addEventListener('load', function() {
+		/*设置时间*/
+		let timer = setTimeout(time, 1000);
+		function time() {
+			clearTimeout(timer); //清除定时器
+			let currentDate = new Date();
+			document.querySelector('.showTime').textContent = `
+				${currentDate.getFullYear()}年
+				${currentDate.getMonth()+1}月
+				${currentDate.getDate()}日
+				${currentDate.getHours()}时
+				${currentDate.getMinutes()}分
+				${currentDate.getSeconds()}秒
+				`;
+			timer = setTimeout(time, 1000);
+		}
+
+		/*取得json數據並裝載進表格*/
+		fetchLoadTableData("./data.json");
+		
+		
+	});
+	
+	function fetchLoadTableData(path){
+		let xhr = new XMLHttpRequest();
+		xhr.open('GET', path);
+		xhr.responseType = 'json';
+		xhr.send();
+		xhr.onload = () => {
+			let resp = xhr.response;
+			populateData(resp);
+		}
+	}
+	
+	function populateData(data) {
+			for (let item of data) {
+				let newTr = document.createElement("tr");
+				fillLine(item, newTr);
+				let tbody = document.querySelector('tbody');
+				tbody.appendChild(newTr);
+			}
+		}
+	
+
+	/*待提交后端写入数据库的数据*/
+	let neededSubmitLineData = {
+		id: '',
+		inOrOut: '',
+		type: '',
+		amount: '',
+		notice: '',
+		belong: ''
+	};
+
+	function fillLine(obj, tr) { // obj-json对象数组中的一个对象 ; tr 是一个<tr>节点
+		for (let field in obj) {
+			if ('id' == field) continue;
+			let td = document.createElement('td');
+			let node;
+			switch (field) {
+				case 'inOrOut':
+					node = createElement('select', obj.inOrOut);
+					// node.addEventListener('blur',e=>{
+					// 	if(obj.inOrOut!==e.target.value){
+					// 		neededSubmitLineData.id = obj.id;
+					// 		neededSubmitLineData.inOrOut = e.target.value;
+					// 	}
+					// });
+					addListenerForNode(node, obj, field);
+					break;
+				case 'type':
+					node = createElement('select', obj.type);
+					// node.addEventListener('blur',e=>{
+					// 	if(obj.type!== e.target.value){
+					// 		neededSubmitLineData.id = obj.id;
+					// 		neededSubmitLineData.type = e.target.value;
+					// 	}
+					// });
+					addListenerForNode(node, obj, field);
+					break;
+				case 'time':
+					node = createElement('dateInput', obj.time);
+					// node.addEventListener('blur',e=>{
+					// 	if(obj.time!==e.target.value){
+					// 		neededSubmitLineData.id = obj.id;
+					// 		neededSubmitLineData.time =e.target.value;
+					// 	}
+					// });
+					addListenerForNode(node, obj, field);
+					break;
+				default:
+					node = createElement('input', obj[field]);
+					// node.addEventListener('blur',e=>{
+					// 	if(obj[field]!== e.target.value){
+					// 		neededSubmitLineData.id = obj.id;
+					// 		neededSubmitLineData[field] = e.target.value;
+					// 	}
+					// })
+					addListenerForNode(node, obj, field);
+			}
+			td.appendChild(node);
+			tr.appendChild(td);
+		}
+	}
+
+	function createElement(elementName, data) {
+		let node;
+		switch (elementName) {
+			case 'select':
+				let opt = document.createElement("option");
+				// opt.setAttribute('value',data); 这么写无效
+				opt.textContent = data;
+				node = document.createElement('select');
+				node.appendChild(opt);
+				break;
+			case 'dateInput':
+				node = document.createElement('input');
+				node.setAttribute('type', 'date');
+				node.setAttribute('value', data);
+				// node.textContent = data;. 这么写无效
+				break;
+			default:
+				node = document.createElement('input');
+				node.setAttribute('type', 'text');
+				node.setAttribute('value', data);
+				node.style.width = '100%';
+		}
+		return node;
+	}
+
+	function addListenerForNode(node, obj, field) { //field 是属性名 obj是对象
+		node.addEventListener('blur', e => {
+			if (obj[field].toString() !== e.target.value) {
+				neededSubmitLineData.id = obj.id;
+				neededSubmitLineData[field] = e.target.value;
+				console.log(neededSubmitLineData);
+			}
+		});
+	}
+
+	
+</script>
+<!-- 吃-eating
+穿-clothing
+住-living
+行-walking
+育-teaching
+醫-curing
+借-borrow
+債-debt
+需-need
+玩-play -->
