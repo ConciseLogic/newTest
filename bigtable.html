@@ -73,20 +73,23 @@
 			<h1>账本</h1>
 			<span class="showTime"></div>
 		</header>
-		<section class="search">
+		<section class="operation">
 			<select name="type" >
 				<optgroup label="in">
 					<option value="salary">工資</option>
+					<option value="rent">租赁</option>
+					<option value="dividends">红利</option>
+					<option value="business">生意</option>
 				</optgroup>
 				<optgroup label="out">
-					<option value="eating" class="se">喫</option>
+					<option value="eating">喫</option>
 					<option value="clothing">穿</option>
 					<option value="living">住</option>
 					<option value="walking">行</option>
 					<option value="teaching">育</option>
 					<option value="curing">醫</option>
-					<option value="borrow">借</option>
-					<option value="debt">債</option>
+					<option value="borrow">借出</option> <!-- 借嘛有亏有盈,像买基金啥的，可以归类于此-->
+					<option value="repay">还债</option> <!-- 债不会被计入总支出 -->
 					<option value="need">需</option>
 					<option value="play">玩</option>
 				</optgroup>
@@ -95,11 +98,15 @@
 			<input type="number" name="amount" min="0" max="1000000"placeholder="金额">
 			<input type="text" name="notice" placeholder="备注">
 			<input type="text" name="belong" placeholder="归属人">
+			<button type="button" id="searchButton">检索</button>
+			<button type="button" id="delBtn">批量删除</button>
 		</section>
+		
 		<table>
 			<caption>收入支出记录表</caption>
 			<thead>
 				<tr>
+					<th scope="col">是否删除</th>
 					<th scope="col">收支</th>
 					<th scope="col">类型</th>
 					<th scope="col">时刻</th>
@@ -132,10 +139,78 @@
 		}
 
 		/*取得json數據並裝載進表格*/
-		fetchLoadTableData("./data.json");
+		fetchLoadTableData("./data/data.json");
+		
+		/*实现摁q搜索区域的名為type的select聚焦！*/
 		
 		
+		/*检索按钮触发-获取搜索数据并发送至后端*/
+		document.querySelector('#searchButton').addEventListener('click',e=>{
+			searchData. type = document.querySelector('select[name=\'type\']').value;
+			searchData.time = document.querySelector('input[name=\'time\']').value;
+			searchData.amount = document.querySelector('input[name=\'amount\']').value;
+			searchData.notice = document.querySelector('input[name=\'notice\']').value;
+			searchData.belong = document.querySelector('input[name=\'belong\']').value;
+			//将数据发送至后端
+			
+			
+			//清空数据---好像又没必要
+			makeEmpty(searchData);
+		})
+		
+		//给批量删除按钮绑定事件处理器
+		document.querySelector("#delBtn").addEventListener('click',()=>{
+			if(window.confirm("确认删除所选数据行？")){
+				//获取所有选定的checkbox类型的input,获取其存储的id值，将所有id添加至id集合内以传给后端
+				let trs = document.querySelectorAll("tbody tr");
+				let delTrs = [];//待删除的行节点
+				for (let tr of trs) {
+					const checkbox = tr.firstChild.firstChild;
+					if(checkbox.checked){
+						ids.push(checkbox.value);
+						delTrs.push(tr);
+					}
+				}
+				
+				/*将ids发送给后端，根据的返回的数据判断是否删除行*/
+				
+				/*后台发来的响应表明数据库已将选中的数据删除,则现在将前端选中的行删除*/
+				for (let tr of delTrs) {
+					tbody.removeChild(tr);
+				}
+			}
+		});
 	});
+	let tbody = document.querySelector('tbody');
+	/*待提交后端写入数据库的数据*/
+	let neededSubmitLineData = {
+		id: '',
+		inOrOut: '',
+		type: '',
+		time:'',
+		amount: '',
+		notice: '',
+		belong: ''
+	};
+	
+	/*搜索数据*/
+	let searchData = {
+		type:'',
+		time:'',
+		amount:'',
+		notice:'',
+		belong:''
+	}
+	
+	//id集合（用于数据库删除数据）
+	let ids = [];
+	
+	//将搜索数据置空
+	function makeEmpty(obj){
+		for (let field in obj) {
+			searchData[field]='';
+		}
+	}
 	
 	function fetchLoadTableData(path){
 		let xhr = new XMLHttpRequest();
@@ -151,29 +226,36 @@
 	function populateData(data) {
 			for (let item of data) {
 				let newTr = document.createElement("tr");
+				/*给每一行绑定一个回车事件处理器（回车的同时传递修改的数据）*/
+				newTr.addEventListener('keypress',e=>{
+					if(e.keyCode == 13){
+						//向后台提交被修改过的数据对象neededSubmitLineData
+						
+						
+						//将neededSubmitLineData置空
+						makeEmpty(neededSubmitLineData);
+						let tr  = document.createElement('tr');
+						fillLine(neededSubmitLineData,tr);
+						document.querySelector('table tbody').appendChild(tr);
+						tr.firstChild.firstChild.focus();
+					}
+				});
+				
 				fillLine(item, newTr);
-				let tbody = document.querySelector('tbody');
 				tbody.appendChild(newTr);
 			}
-		}
+	}
 	
-
-	/*待提交后端写入数据库的数据*/
-	let neededSubmitLineData = {
-		id: '',
-		inOrOut: '',
-		type: '',
-		amount: '',
-		notice: '',
-		belong: ''
-	};
 
 	function fillLine(obj, tr) { // obj-json对象数组中的一个对象 ; tr 是一个<tr>节点
 		for (let field in obj) {
-			if ('id' == field) continue;
+			// if ('id' == field) continue;
 			let td = document.createElement('td');
 			let node;
 			switch (field) {
+				case 'id':
+					node = createElement('checkbox',obj[field]);
+					break;
 				case 'inOrOut':
 					node = createElement('select', obj.inOrOut);
 					// node.addEventListener('blur',e=>{
@@ -222,6 +304,12 @@
 	function createElement(elementName, data) {
 		let node;
 		switch (elementName) {
+			case 'checkbox':
+				node = document.createElement('input');
+				node.setAttribute('type','checkbox');
+				node.setAttribute('name',"id");
+				node.setAttribute('value',data);
+				break;
 			case 'select':
 				let opt = document.createElement("option");
 				// opt.setAttribute('value',data); 这么写无效
